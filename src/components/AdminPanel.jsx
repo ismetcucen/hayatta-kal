@@ -164,6 +164,25 @@ function AdminPanel() {
         setSelectedScenarioId(id);
     };
 
+    const deleteScenario = async (id, e) => {
+        e.stopPropagation();
+        if (!window.confirm("Bu senaryoyu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) return;
+
+        setGameScenarios(prev => prev.filter(s => s.id !== id));
+        if (selectedScenarioId === id) {
+            const remaining = gameScenarios.filter(s => s.id !== id);
+            if (remaining.length > 0) setSelectedScenarioId(remaining[0].id);
+            else setSelectedScenarioId(null);
+        }
+
+        const { error } = await supabase.from('scenarios').delete().eq('id', id);
+        if (error) {
+            console.error("Error deleting scenario:", error);
+            alert("Silme işlemi başarısız oldu.");
+            fetchScenarios(); // Revert
+        }
+    };
+
     const addQuestion = () => {
         setGameScenarios(prev => prev.map(s => {
             if (s.id !== selectedScenarioId) return s;
@@ -260,13 +279,21 @@ function AdminPanel() {
                             </div>
                             <div className="space-y-2">
                                 {gameScenarios.map(s => (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => setSelectedScenarioId(s.id)}
-                                        className={`w-full text-left p-3 rounded-lg font-medium transition-all ${selectedScenarioId === s.id ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50' : 'hover:bg-slate-800 text-slate-300'}`}
-                                    >
-                                        {s.title}
-                                    </button>
+                                    <div key={s.id} className={`group flex items-center justify-between p-2 rounded-lg transition-all ${selectedScenarioId === s.id ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-slate-800 border border-transparent'}`}>
+                                        <button
+                                            onClick={() => setSelectedScenarioId(s.id)}
+                                            className={`flex-1 text-left font-medium text-sm truncate ${selectedScenarioId === s.id ? 'text-blue-400' : 'text-slate-300'}`}
+                                        >
+                                            {s.title}
+                                        </button>
+                                        <button
+                                            onClick={(e) => deleteScenario(s.id, e)}
+                                            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                                            title="Senaryoyu Sil"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </div>
