@@ -24,6 +24,19 @@ function Game() {
 
     const [activeMission, setActiveMission] = useState('hepsi');
 
+    const updateScorePoints = async (delta) => {
+        if (!currentUser) return;
+
+        // Optimistic update
+        setCurrentUser(prev => ({ ...prev, score: (prev.score || 0) + delta }));
+
+        // DB Update
+        const { data: freshUser } = await supabase.from('students').select('score').eq('id', currentUser.id).single();
+        if (freshUser) {
+            await supabase.from('students').update({ score: freshUser.score + delta }).eq('id', currentUser.id);
+        }
+    };
+
     useEffect(() => {
         const fetchGameData = async () => {
             // Fetch Scenarios
@@ -152,49 +165,61 @@ function Game() {
             if (newRisk >= 100) {
                 setChatHistory(prev => [...prev, { type: 'bot', text: "💀 MAALESEF KAYBETTİNİZ. Risk seviyeniz %100'e ulaştı." }]);
                 setGameStatus('finished');
-                updateScore(100); // 0 score gained
+                updateScore(100); // 0 score gained (effectively) or max penalty
             } else {
-                // RETRY MECHANIC: If it's a "bad" choice (risk increases), don't advance.
                 const isWrongAnswer = option.riskChanges > 0;
 
+                // Show feedback
                 if (isWrongAnswer) {
-                    setChatHistory(prev => [...prev, { type: 'bot', text: "❌ Yanlış karar! Risk seviyesi arttı. Tekrar dene, doğru kararı verene kadar ilerleyemezsin.", isWarning: true }]);
+                    setChatHistory(prev => [...prev, { type: 'bot', text: "❌ Yanlış karar! Risk seviyesi arttı.", isWarning: true }]);
+                    // Penalty for wrong answer? Maybe just higher risk results in lower final score.
+                    // Or we can explicitly decrease score.
+                    // For now, let's rely on risk level affecting the final calculation or added points.
                 } else {
-                    // Correct Answer -> SUCCESS FOR THIS CITY
-                    setChatHistory(prev => [...prev, { type: 'bot', text: "✅ Bölge kontrol altına alındı! Harika iş çıkardın." }]);
+                    setChatHistory(prev => [...prev, { type: 'bot', text: "✅ Doğru hamle! Risk seviyesi kontrol altında." }]);
+                }
 
-                    // Mark confirmed complete
-                    const cityKey = Object.keys(cityStats).find(key => cityStats[key].name === currentCity.name);
-                    const newCompleted = [...completedCityIds, cityKey];
+                // ADVANCE LOGIC (Regardless of Right/Wrong, unless dead)
+
+                // Mark confirmed complete for this city
+                const cityKey = Object.keys(cityStats).find(key => cityStats[key].name === currentCity.name);
+
+                // Only add if not already there (safety check)
+                let newCompleted = completedCityIds;
+                if (!completedCityIds.includes(cityKey)) {
+                    newCompleted = [...completedCityIds, cityKey];
                     setCompletedCityIds(newCompleted);
+                }
 
-                    // Check Mission Status
-                    const allMissionCities = getMissionCities();
-                    const isMissionComplete = allMissionCities.every(k => newCompleted.includes(k));
+                // Check Mission Status
+                const allMissionCities = getMissionCities();
+                const isMissionComplete = allMissionCities.every(k => newCompleted.includes(k));
 
-                    // Update Score (partial)
-                    updateScore(newRisk);
+                // Update Score
+                // If correct: +20 points. If wrong: -10 points.
+                // We need a different updateScore logic for this "action-based" scoring
+                const scoreDelta = isWrongAnswer ? -10 : 20;
+                updateScorePoints(scoreDelta);
 
-                    if (isMissionComplete) {
+                if (isMissionComplete) {
+                    setTimeout(() => {
+                        setChatHistory(prev => [...prev, { type: 'bot', text: "🏆 GÖREV TAMAMLANDI! Tüm bölgeler ziyaret edildi." }]);
+                        setGameStatus('finished');
+                    }, 1000);
+                } else {
+                    // AUTO-ADVANCE logic
+                    setTimeout(() => {
+                        setChatHistory(prev => [...prev, { type: 'bot', text: "🚁 Helikopter hazırlanıyor... Sıradaki acil durum bölgesine geçiliyor..." }]);
+
                         setTimeout(() => {
-                            setChatHistory(prev => [...prev, { type: 'bot', text: "🏆 GÖREV TAMAMLANDI! Tüm bölgeler güvenli." }]);
-                            setGameStatus('finished'); // Real finish
-                        }, 1000);
-                    } else {
-                        // AUTO-ADVANCE logic
-                        setTimeout(() => {
-                            setChatHistory(prev => [...prev, { type: 'bot', text: "🚁 Helikopter hazırlanıyor... Sıradaki acil durum bölgesine geçiliyor..." }]);
-
-                            setTimeout(() => {
-                                // Pick next random unvisited city
-                                const unvisited = allMissionCities.filter(k => !newCompleted.includes(k));
-                                if (unvisited.length > 0) {
-                                    const nextKey = unvisited[Math.floor(Math.random() * unvisited.length)];
-                                    selectCity(cityStats[nextKey]);
-                                }
-                            }, 3000);
-                        }, 1000);
-                    }
+                            // Pick next random unvisited city
+                            const unvisited = allMissionCities.filter(k => !newCompleted.includes(k));
+                            if (unvisited.length > 0) {
+                                const nextKey = unvisited[Math.floor(Math.random() * unvisited.length)];
+                                selectCity(cityStats[nextKey]);
+                            }
+                        }, 3000);
+                    }, 1000);
                 }
             }
         }, 600);
