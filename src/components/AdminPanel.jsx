@@ -40,14 +40,25 @@ function AdminPanel() {
             console.error('Error fetching scenarios:', error);
         } else {
             console.log('Fetched Data:', data);
-            if (!data || data.length === 0) {
-                setGameScenarios(localScenarios);
-            } else {
-                setGameScenarios(data);
-            }
 
-            if (data && data.length > 0) setSelectedScenarioId(data[0].id);
-            else if (localScenarios.length > 0) setSelectedScenarioId(localScenarios[0].id);
+            // Merge strategy: Start with local, overlay DB, but FORCE 'yangin' to be local
+            const dbMap = new Map((data || []).map(s => [s.id, s]));
+
+            const merged = localScenarios.map(local => {
+                if (local.id === 'yangin') return local; // FORCE LOCAL for Yangin check
+                return dbMap.get(local.id) || local;
+            });
+
+            // Add custom scenarios from DB that aren't in local
+            (data || []).forEach(remote => {
+                if (!localScenarios.find(l => l.id === remote.id)) {
+                    merged.push(remote);
+                }
+            });
+
+            setGameScenarios(merged);
+
+            if (merged.length > 0) setSelectedScenarioId(merged[0].id);
         }
         setLoading(false);
     };
