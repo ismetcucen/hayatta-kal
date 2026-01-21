@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HumanBody from './components/HumanBody';
 import MapController from './components/MapController';
 import AdminPanel from './components/AdminPanel';
 import { scenarios } from './data/scenarios';
+import { supabase } from './supabaseClient';
 import { Play, RotateCcw, AlertTriangle, Map as MapIcon, Info, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import { cityStats } from './data/cityData';
@@ -11,15 +12,28 @@ import { cityStats } from './data/cityData';
 function Game() {
     const [currentCity, setCurrentCity] = useState(null);
     const [currentScenario, setCurrentScenario] = useState(null);
+    const [gameScenarios, setGameScenarios] = useState(scenarios);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [riskLevel, setRiskLevel] = useState(0);
     const [chatHistory, setChatHistory] = useState([]);
     const [gameStatus, setGameStatus] = useState('map'); // map, playing, finished
 
+    useEffect(() => {
+        const fetchScenarios = async () => {
+            const { data, error } = await supabase.from('scenarios').select('*');
+            if (error) {
+                console.error('Error fetching scenarios:', error);
+            } else if (data && data.length > 0) {
+                setGameScenarios(data);
+            }
+        };
+        fetchScenarios();
+    }, []);
+
     const selectCity = (city) => {
         setCurrentCity(city);
         // Find matching scenario or default to earthquake
-        const scenario = scenarios.find(s => s.id === city.dangerType) || scenarios[0];
+        const scenario = gameScenarios.find(s => s.id === city.dangerType) || gameScenarios[0];
         setCurrentScenario(scenario);
         setGameStatus('intro');
     };
