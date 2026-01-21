@@ -39,11 +39,48 @@ function Game() {
 
     useEffect(() => {
         const fetchGameData = async () => {
-            // Fetch Scenarios
-            const { data: scenariosData } = await supabase.from('scenarios').select('*');
-            if (scenariosData && scenariosData.length > 0) {
-                setGameScenarios(scenariosData);
+            // Fetch Scenarios from DB
+            const { data: dbScenarios } = await supabase.from('scenarios').select('*');
+
+            let finalScenarios = [...scenarios]; // Start with local default
+
+            if (dbScenarios && dbScenarios.length > 0) {
+                // Merge DB with Local
+                // We want to use DB data, UNLESS it's the 'yangin' scenario and it looks outdated (missing 4th option)
+                const yanginLocal = scenarios.find(s => s.id === 'yangin');
+
+                finalScenarios = scenarios.map(local => {
+                    const remote = dbScenarios.find(r => r.id === local.id);
+                    if (!remote) return local; // Use local if missing in DB
+
+                    // Specific check for 'yangin' fix
+                    if (local.id === 'yangin') {
+                        const step1 = remote.steps?.find(s => s.id === 1);
+                        if (!step1 || !step1.options || step1.options.length < 4) {
+                            console.warn("Detected stale Yangin scenario in DB. Using local version and auto-fixing.");
+                            // Trigger background fix
+                            supabase.from('scenarios').upsert(local).then(({ error }) => {
+                                if (!error) console.log("Auto-fixed Yangin scenario in DB.");
+                            });
+                            return local; // Force local
+                        }
+                    }
+                    return remote; // Otherwise prefer DB
+                });
+
+                // Add any purely new scenarios from DB that don't exist locally
+                dbScenarios.forEach(remote => {
+                    if (!finalScenarios.find(f => f.id === remote.id)) {
+                        finalScenarios.push(remote);
+                    }
+                });
+            } else {
+                // DB Empty? Auto-seed everything locally
+                console.warn("DB empty. Seeding all local scenarios.");
+                localScenarios.forEach(s => supabase.from('scenarios').upsert(s));
             }
+
+            setGameScenarios(finalScenarios);
 
             // Fetch Active Mission Setting
             const { data: settingsData } = await supabase.from('game_settings').select('active_mission').eq('id', 'global_config').single();
