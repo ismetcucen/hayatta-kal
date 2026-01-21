@@ -53,17 +53,15 @@ function Game() {
                     const remote = dbScenarios.find(r => r.id === local.id);
                     if (!remote) return local; // Use local if missing in DB
 
-                    // Specific check for 'yangin' fix
+                    // FORCE FIX: Aggressively overwrite 'yangin' in DB with local version
+                    // This resolves the issue where the user still sees old data despite code changes.
                     if (local.id === 'yangin') {
-                        const step1 = remote.steps?.find(s => s.id === 1);
-                        if (!step1 || !step1.options || step1.options.length < 4) {
-                            console.warn("Detected stale Yangin scenario in DB. Using local version and auto-fixing.");
-                            // Trigger background fix
-                            supabase.from('scenarios').upsert(local).then(({ error }) => {
-                                if (!error) console.log("Auto-fixed Yangin scenario in DB.");
-                            });
-                            return local; // Force local
-                        }
+                        console.warn("Force-syncing Yangin scenario to DB...");
+                        supabase.from('scenarios').upsert(local).then(({ error }) => {
+                            if (error) console.error("Failed to sync Yangin:", error);
+                            else console.log("Yangin successfully synced to DB.");
+                        });
+                        return local; // Force use of local data
                     }
                     return remote; // Otherwise prefer DB
                 });
