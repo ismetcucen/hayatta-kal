@@ -88,12 +88,15 @@ function Game() {
         const scenario = gameScenarios.find(s => s.id === type) || gameScenarios[0];
         setCurrentScenario(scenario);
 
+        const initialSteps = scenario.steps || [];
+        if (initialSteps.length === 0) {
+            console.error("Scenario has no steps!");
+            return;
+        }
+
         // Determine which step (question) to show based on progress
         const missionProgress = completedCityIds.length;
-        const stepIndex = missionProgress % scenario.steps.length;
-
-        const initialSteps = scenario.steps;
-        if (!initialSteps || initialSteps.length === 0) return;
+        const stepIndex = missionProgress % initialSteps.length;
 
         setCurrentStepIndex(stepIndex); // LOAD SPECIFIC STEP
 
@@ -227,11 +230,11 @@ function Game() {
                 <div className="flex items-center gap-4">
                     {/* Mission Progress Bar */}
                     {activeMission !== 'hepsi' && (
-                        <div className="hidden md:flex flex-col items-end mr-4">
-                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Görev İlerlemesi</span>
-                            <div className="flex gap-1 mt-1">
+                        <div className="hidden lg:flex flex-col items-end mr-2">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Görev İlerlemesi</span>
+                            <div className="flex gap-1 mt-1 max-w-[200px] flex-wrap justify-end">
                                 {getMissionCities().map(key => (
-                                    <div key={key} className={`w-3 h-3 rounded-full ${completedCityIds.includes(key) ? 'bg-green-500 shadow-green-500/50 shadow' : 'bg-slate-700'}`}></div>
+                                    <div key={key} className={`w-2 h-2 rounded-full transition-all ${completedCityIds.includes(key) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-slate-800'}`}></div>
                                 ))}
                             </div>
                         </div>
