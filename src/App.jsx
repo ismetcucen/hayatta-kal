@@ -3,13 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HumanBody from './components/HumanBody';
 import MapController from './components/MapController';
 import AdminPanel from './components/AdminPanel';
+import Login from './components/Login';
 import { scenarios } from './data/scenarios';
 import { supabase } from './supabaseClient';
-import { Play, RotateCcw, AlertTriangle, Map as MapIcon, Info, Settings } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, Map as MapIcon, Settings, Trophy, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import { cityStats } from './data/cityData';
 
 function Game() {
+    const [currentUser, setCurrentUser] = useState(null);
     const [currentCity, setCurrentCity] = useState(null);
     const [currentScenario, setCurrentScenario] = useState(null);
     const [gameScenarios, setGameScenarios] = useState(scenarios);
@@ -17,6 +19,8 @@ function Game() {
     const [riskLevel, setRiskLevel] = useState(0);
     const [chatHistory, setChatHistory] = useState([]);
     const [gameStatus, setGameStatus] = useState('map'); // map, playing, finished
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [classLeaderboard, setClassLeaderboard] = useState([]);
 
     useEffect(() => {
         const fetchScenarios = async () => {
@@ -30,9 +34,24 @@ function Game() {
         fetchScenarios();
     }, []);
 
+    useEffect(() => {
+        if (showLeaderboard && currentUser) {
+            fetchLeaderboard();
+        }
+    }, [showLeaderboard]);
+
+    const fetchLeaderboard = async () => {
+        const { data } = await supabase
+            .from('students')
+            .select('*')
+            .eq('class_id', currentUser.class_id)
+            .order('score', { ascending: false })
+            .limit(10);
+        if (data) setClassLeaderboard(data);
+    };
+
     const selectCity = (city) => {
         setCurrentCity(city);
-        // Find matching scenario or default to earthquake
         const scenario = gameScenarios.find(s => s.id === city.dangerType) || gameScenarios[0];
         setCurrentScenario(scenario);
         setGameStatus('intro');
@@ -62,6 +81,21 @@ function Game() {
         ]);
     };
 
+    const updateScore = async (finalRisk) => {
+        if (!currentUser) return;
+        const gainedScore = Math.max(0, 100 - finalRisk);
+
+        // Optimistic update
+        setCurrentUser(prev => ({ ...prev, score: (prev.score || 0) + gainedScore }));
+
+        // DB Update
+        // We increment the score atomically if possible, but for simple app, read-then-write
+        const { data: freshUser } = await supabase.from('students').select('score').eq('id', currentUser.id).single();
+        if (freshUser) {
+            await supabase.from('students').update({ score: freshUser.score + gainedScore }).eq('id', currentUser.id);
+        }
+    };
+
     const restartGame = () => {
         setGameStatus('map');
         setCurrentCity(null);
@@ -76,9 +110,11 @@ function Game() {
 
         setTimeout(() => {
             setChatHistory(prev => [...prev, { type: 'bot', text: option.feedback, isFeedback: true }]);
+
             if (newRisk >= 100) {
                 setChatHistory(prev => [...prev, { type: 'bot', text: "💀 MAALESEF KAYBETTİNİZ. Risk seviyeniz %100'e ulaştı." }]);
                 setGameStatus('finished');
+                updateScore(100); // 0 score gained
             } else {
                 if (currentStepIndex < currentScenario.steps.length - 1) {
                     const nextStep = currentScenario.steps[currentStepIndex + 1];
@@ -89,10 +125,15 @@ function Game() {
                 } else {
                     setChatHistory(prev => [...prev, { type: 'bot', text: "🏆 TEBRİKLER! Bu felaketten sağ kurtuldun." }]);
                     setGameStatus('finished');
+                    updateScore(newRisk);
                 }
             }
         }, 600);
     };
+
+    if (!currentUser) {
+        return <Login onLogin={setCurrentUser} />;
+    }
 
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col h-screen font-sans text-slate-100 overflow-hidden">
@@ -101,25 +142,78 @@ function Game() {
             <header className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-20 shadow-lg shrink-0">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="text-red-600 w-6 h-6" />
-                    <h1 className="font-bold text-xl tracking-tight">HAYATTA KAL <span className="text-slate-500 font-normal text-sm">| Afet Simülasyonu</span></h1>
+                    <h1 className="font-bold text-xl tracking-tight hidden md:block">HAYATTA KAL</h1>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {currentCity && (
-                        <div className="bg-slate-800 px-3 py-1 rounded-full text-sm font-bold border border-slate-700 flex items-center gap-2">
-                            <MapIcon className="w-4 h-4 text-blue-500" />
-                            {currentCity.name}
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 bg-slate-800 rounded-full px-4 py-1 border border-slate-700">
+                        <span className="font-bold text-blue-400">{currentUser.name}</span>
+                        <span className="text-slate-500">|</span>
+                        <span className="font-mono text-yellow-500 font-bold">{currentUser.score || 0} Puan</span>
+                    </div>
+
+                    <button
+                        onClick={() => setShowLeaderboard(!showLeaderboard)}
+                        className={`p-2 rounded-full transition-colors ${showLeaderboard ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-yellow-500'}`}
+                        title="Puan Durumu"
+                    >
+                        <Trophy className="w-5 h-5" />
+                    </button>
+
                     <Link to="/admin" className="p-2 text-slate-600 hover:text-slate-400 hover:bg-slate-800 rounded-full transition-colors" title="Yönetim Paneli">
                         <Settings className="w-5 h-5" />
                     </Link>
+
+                    <button
+                        onClick={() => setCurrentUser(null)}
+                        className="p-2 text-red-500/70 hover:text-red-500 hover:bg-red-900/20 rounded-full transition-colors"
+                        title="Çıkış Yap"
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
                 </div>
             </header>
 
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
-                {/* Left Panel: Map & Stats (Always visible but shrinks when playing) */}
+                {/* Leaderboard Overlay */}
+                {showLeaderboard && (
+                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                                <h3 className="font-bold text-xl text-yellow-500 flex items-center gap-2">
+                                    <Trophy className="w-6 h-6" /> Sınıf Sıralaması
+                                </h3>
+                                <button onClick={() => setShowLeaderboard(false)} className="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-950 text-slate-500 text-xs uppercase font-bold sticky top-0">
+                                        <tr>
+                                            <th className="p-4">#</th>
+                                            <th className="p-4">Öğrenci</th>
+                                            <th className="p-4 text-right">Puan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800">
+                                        {classLeaderboard.map((s, i) => (
+                                            <tr key={s.id} className={s.id === currentUser.id ? "bg-blue-900/20 text-white" : "text-slate-300"}>
+                                                <td className="p-4 font-bold text-slate-500">{i + 1}</td>
+                                                <td className="p-4 font-medium">{s.name} {s.id === currentUser.id && "(Sen)"}</td>
+                                                <td className="p-4 text-right font-mono text-yellow-500">{s.score}</td>
+                                            </tr>
+                                        ))}
+                                        {classLeaderboard.length === 0 && (
+                                            <tr><td colSpan="3" className="p-8 text-center text-slate-500">Veri yükleniyor...</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Left Panel: Map & Status */}
                 <div className={clsx(
                     "transition-all duration-500 ease-in-out border-r border-slate-800 flex flex-col bg-slate-900 relative",
                     gameStatus === 'map' ? "flex-1" : "flex-[0.4] md:max-w-sm hidden md:flex"
@@ -127,48 +221,19 @@ function Game() {
                     {gameStatus === 'map' ? (
                         <MapController onSelectCity={selectCity} />
                     ) : (
-                        // Stats View when Playing
-                        <div className="p-6 space-y-6 overflow-y-auto">
-                            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
-                                <h2 className="text-2xl font-black mb-4 text-white">{currentCity.name}</h2>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between border-b border-slate-700 pb-2">
-                                        <span className="text-slate-400">Nüfus</span>
-                                        <span className="font-bold">{currentCity.population}</span>
-                                    </div>
-                                    <div className="flex justify-between border-b border-slate-700 pb-2">
-                                        <span className="text-slate-400">Risk Seviyesi</span>
-                                        <span className="font-bold text-red-500">{currentCity.risk}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-slate-400 block mb-1">Geçmiş Afetler</span>
-                                        <p className="text-sm text-slate-300 italic">{currentCity.history}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-blue-900/20 p-4 rounded-xl border border-blue-900/50">
-                                <h3 className="flex items-center gap-2 font-bold text-blue-400 mb-2">
-                                    <Info className="w-4 h-4" /> Biliyor muydun?
-                                </h3>
-                                <ul className="list-disc list-inside text-sm text-blue-200 space-y-1">
-                                    {currentCity.facts.map((fact, i) => <li key={i}>{fact}</li>)}
-                                </ul>
-                            </div>
-
+                        <div className="flex-1 flex items-center justify-center p-4">
                             <HumanBody riskLevel={riskLevel} />
                         </div>
                     )}
 
-                    {/* Instructions overlay on Map Mode */}
                     {gameStatus === 'map' && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-700 shadow-2xl z-[1000]">
-                            <p className="font-bold animate-pulse">Bir şehir seç ve simülasyonu başlat</p>
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-700 shadow-2xl z-[1000] whitespace-nowrap">
+                            <p className="font-bold animate-pulse text-sm md:text-base">Bir şehir seç ve simülasyonu başlat</p>
                         </div>
                     )}
                 </div>
 
-                {/* Right Panel: Game / Intro (Only visible when city selected) */}
+                {/* Right Panel: Game / Intro */}
                 {gameStatus !== 'map' && (
                     <div className="flex-[1.5] flex flex-col bg-slate-950 relative animate-in slide-in-from-right duration-500">
 
@@ -185,7 +250,6 @@ function Game() {
                                     <h2 className="text-4xl font-black mb-4">SİMÜLASYON HAZIR</h2>
                                     <p className="text-xl text-slate-400 max-w-lg mx-auto">
                                         {currentCity.name} için afet senaryosu yükleniyor.
-                                        Doğru kararlar vererek hayatta kalmalısın.
                                     </p>
                                 </div>
 
@@ -234,7 +298,8 @@ function Game() {
                                     )}
 
                                     {gameStatus === 'finished' && (
-                                        <div className="text-center py-10">
+                                        <div className="text-center py-10 space-y-4">
+                                            <p className="text-slate-400">Puanın güncellendi!</p>
                                             <button onClick={restartGame} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold flex items-center gap-2 mx-auto">
                                                 <RotateCcw className="w-5 h-5" /> Haritaya Dön
                                             </button>
