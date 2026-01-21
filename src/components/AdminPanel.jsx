@@ -142,8 +142,10 @@ function AdminPanel() {
                 id: 1,
                 question: "İlk soru?",
                 options: [
-                    { text: "Seçenek A", riskChanges: 0, feedback: "Geri bildirim A" },
-                    { text: "Seçenek B", riskChanges: 10, feedback: "Geri bildirim B" }
+                    { text: "Seçenek A", riskChanges: 0, feedback: "Doğru cevap geri bildirimi" },
+                    { text: "Seçenek B", riskChanges: 50, feedback: "Yanlış cevap geri bildirimi" },
+                    { text: "Seçenek C", riskChanges: 100, feedback: "Kritik hata geri bildirimi" },
+                    { text: "Seçenek D", riskChanges: 20, feedback: "Riskli cevap geri bildirimi" }
                 ]
             }]
         };
@@ -158,8 +160,10 @@ function AdminPanel() {
                 id: s.steps.length + 1,
                 question: "Yeni Soru...",
                 options: [
-                    { text: "Seçenek 1", riskChanges: 0, feedback: "Feedback..." },
-                    { text: "Seçenek 2", riskChanges: 0, feedback: "Feedback..." }
+                    { text: "Seçenek A", riskChanges: 0, feedback: "Feedback..." },
+                    { text: "Seçenek B", riskChanges: 0, feedback: "Feedback..." },
+                    { text: "Seçenek C", riskChanges: 0, feedback: "Feedback..." },
+                    { text: "Seçenek D", riskChanges: 0, feedback: "Feedback..." }
                 ]
             };
             return { ...s, steps: [...s.steps, newStep] };
