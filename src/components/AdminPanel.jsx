@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { scenarios as localScenarios } from '../data/scenarios';
-import { Save, Trash2, Plus, ArrowLeft, BookOpen, Users, Settings } from 'lucide-react';
+import { Save, Trash2, Plus, ArrowLeft, BookOpen, Users, Settings, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ClassManager from './ClassManager';
@@ -220,9 +220,28 @@ function AdminPanel() {
                     <div className="grid grid-cols-12 gap-6 h-full">
                         {/* Sidebar - Scenario List */}
                         <div className="col-span-3 bg-slate-900 rounded-xl border border-slate-800 p-4 h-fit sticky top-24">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="font-bold text-slate-400 text-sm uppercase tracking-wider">Senaryolar</h2>
-                                <button onClick={addScenario} className="p-1 hover:bg-slate-800 rounded text-blue-500"><Plus className="w-4 h-4" /></button>
+                            <div className="flex flex-col gap-2 mb-4">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="font-bold text-slate-400 text-sm uppercase tracking-wider">Senaryolar</h2>
+                                    <button onClick={addScenario} className="p-1 hover:bg-slate-800 rounded text-blue-500" title="Yeni Ekle"><Plus className="w-4 h-4" /></button>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        if (!window.confirm("Tüm senaryolar varsayılan ayarlara sıfırlanacak ve veritabanına yüklenecek. Onaylıyor musunuz?")) return;
+                                        setLoading(true);
+                                        for (const s of localScenarios) {
+                                            const { error } = await supabase.from('scenarios').upsert(s);
+                                            if (error) console.error("Error upserting:", s.title, error);
+                                        }
+                                        setLoading(false);
+                                        alert("Senaryolar güncellendi! Lütfen sayfayı yenileyin.");
+                                        fetchScenarios();
+                                    }}
+                                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded border border-slate-700 flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    Varsayılanları Yükle
+                                </button>
                             </div>
                             <div className="space-y-2">
                                 {gameScenarios.map(s => (
