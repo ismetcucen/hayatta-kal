@@ -7,6 +7,9 @@ import ClassManager from './ClassManager';
 import GameSettings from './GameSettings';
 
 function AdminPanel() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [password, setPassword] = useState('');
+
     // Supabase integration
     const [gameScenarios, setGameScenarios] = useState([]);
     const [selectedScenarioId, setSelectedScenarioId] = useState(null);
@@ -14,20 +17,29 @@ function AdminPanel() {
     const [activeSection, setActiveSection] = useState('scenarios'); // 'scenarios' or 'classes' or 'settings'
     const [loading, setLoading] = useState(true);
 
-    // Fetch data on mount
+    // Fetch data when authenticated
     React.useEffect(() => {
-        fetchScenarios();
-    }, []);
+        if (isAuthenticated) {
+            fetchScenarios();
+        }
+    }, [isAuthenticated]);
+
+    const handleLogin = (e) => {
+        e.preventDefault();
+        if (password === 'poyraz') {
+            setIsAuthenticated(true);
+        } else {
+            alert('Hatalı şifre!');
+        }
+    };
 
     const fetchScenarios = async () => {
         setLoading(true);
         const { data, error } = await supabase.from('scenarios').select('*');
         if (error) {
             console.error('Error fetching scenarios:', error);
-            // alert('Veri çekilemedi!'); 
         } else {
             console.log('Fetched Data:', data);
-
             if (!data || data.length === 0) {
                 setGameScenarios(localScenarios);
             } else {
@@ -39,6 +51,40 @@ function AdminPanel() {
         }
         setLoading(false);
     };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100 font-sans">
+                <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl max-w-sm w-full text-center">
+                    <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Settings className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">Yönetici Girişi</h2>
+                    <p className="text-slate-400 mb-6 text-sm">Bu alana sadece yetkili personel erişebilir.</p>
+
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input
+                            type="password"
+                            placeholder="Şifre"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 transition-colors"
+                        />
+                        <button
+                            type="submit"
+                            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors"
+                        >
+                            Giriş Yap
+                        </button>
+                    </form>
+
+                    <Link to="/" className="block mt-6 text-slate-500 hover:text-white text-sm">
+                        &larr; Ana Sayfaya Dön
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const handleSave = async () => {
         const scenario = gameScenarios.find(s => s.id === selectedScenarioId);
