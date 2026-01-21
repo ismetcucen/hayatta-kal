@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { scenarios as localScenarios } from '../data/scenarios';
-import { Save, Trash2, Plus, ArrowLeft, BookOpen, Users } from 'lucide-react';
+import { Save, Trash2, Plus, ArrowLeft, BookOpen, Users, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ClassManager from './ClassManager';
+import GameSettings from './GameSettings';
 
 function AdminPanel() {
     // Supabase integration
     const [gameScenarios, setGameScenarios] = useState([]);
     const [selectedScenarioId, setSelectedScenarioId] = useState(null);
     const [activeTab, setActiveTab] = useState('questions'); // 'questions' or 'settings' within a scenario
-    const [activeSection, setActiveSection] = useState('scenarios'); // 'scenarios' or 'classes'
+    const [activeSection, setActiveSection] = useState('scenarios'); // 'scenarios' or 'classes' or 'settings'
     const [loading, setLoading] = useState(true);
 
     // Fetch data on mount
@@ -154,12 +155,20 @@ function AdminPanel() {
                     >
                         <Users className="w-4 h-4" /> Sınıf Yönetimi
                     </button>
+                    <button
+                        onClick={() => setActiveSection('settings')}
+                        className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeSection === 'settings' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <Settings className="w-4 h-4" /> Oyun Ayarları
+                    </button>
                 </div>
             </div>
 
             <div className="flex-1 p-6 max-w-7xl mx-auto w-full">
                 {activeSection === 'classes' ? (
                     <ClassManager />
+                ) : activeSection === 'settings' ? (
+                    <GameSettings />
                 ) : (
                     /* Existing Scenario Editor Content */
                     <div className="grid grid-cols-12 gap-6 h-full">

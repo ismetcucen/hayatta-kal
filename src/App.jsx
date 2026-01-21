@@ -22,16 +22,23 @@ function Game() {
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [classLeaderboard, setClassLeaderboard] = useState([]);
 
+    const [activeMission, setActiveMission] = useState('hepsi');
+
     useEffect(() => {
-        const fetchScenarios = async () => {
-            const { data, error } = await supabase.from('scenarios').select('*');
-            if (error) {
-                console.error('Error fetching scenarios:', error);
-            } else if (data && data.length > 0) {
-                setGameScenarios(data);
+        const fetchGameData = async () => {
+            // Fetch Scenarios
+            const { data: scenariosData } = await supabase.from('scenarios').select('*');
+            if (scenariosData && scenariosData.length > 0) {
+                setGameScenarios(scenariosData);
+            }
+
+            // Fetch Active Mission Setting
+            const { data: settingsData } = await supabase.from('game_settings').select('active_mission').eq('id', 'global_config').single();
+            if (settingsData) {
+                setActiveMission(settingsData.active_mission);
             }
         };
-        fetchScenarios();
+        fetchGameData();
     }, []);
 
     useEffect(() => {
@@ -39,6 +46,7 @@ function Game() {
             fetchLeaderboard();
         }
     }, [showLeaderboard]);
+
 
     const fetchLeaderboard = async () => {
         const { data } = await supabase
@@ -219,7 +227,7 @@ function Game() {
                     gameStatus === 'map' ? "flex-1" : "flex-[0.4] md:max-w-sm hidden md:flex"
                 )}>
                     {gameStatus === 'map' ? (
-                        <MapController onSelectCity={selectCity} />
+                        <MapController onSelectCity={selectCity} activeMission={activeMission} />
                     ) : (
                         <div className="flex-1 flex items-center justify-center p-4">
                             <HumanBody riskLevel={riskLevel} />
@@ -228,7 +236,13 @@ function Game() {
 
                     {gameStatus === 'map' && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-700 shadow-2xl z-[1000] whitespace-nowrap">
-                            <p className="font-bold animate-pulse text-sm md:text-base">Bir şehir seç ve simülasyonu başlat</p>
+                            <p className="font-bold animate-pulse text-sm md:text-base">
+                                {activeMission === 'hepsi' && "Bir şehir seç ve simülasyonu başlat"}
+                                {activeMission === 'yangin' && "GÖREV: Orman yangını riski taşıyan bölgelere müdahale et!"}
+                                {activeMission === 'deprem' && "GÖREV: Deprem riski olan bölgelerde tatbikat yap!"}
+                                {activeMission === 'sel' && "GÖREV: Sel riski taşıyan bölgeleri kontrol et!"}
+                                {activeMission === 'cig' && "GÖREV: Çığ tehlikesi olan bölgeleri incele!"}
+                            </p>
                         </div>
                     )}
                 </div>

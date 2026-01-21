@@ -201,5 +201,54 @@ export const scenarios = [
                 ]
             }
         ]
+    },
+    {
+        id: "yangin",
+        title: "Orman Yangını Senaryosu",
+        intro: "Tatil için bulunduğun bölgede aniden duman kokusu aldın ve ormanlık alandan alevlerin yükseldiğini gördün. Rüzgar şiddetli!",
+        steps: [
+            {
+                id: 1,
+                question: "Yangını fark ettiğin an ilk ne yaparsın?",
+                options: [
+                    {
+                        text: "Hemen yangına doğru koşup söndürmeye çalışırım",
+                        riskChanges: 90,
+                        feedback: "ÇOK TEHLİKELİ! Eğitimin ve ekipmanın yoksa yangına müdahale etmek hayatını riske atar. Duman zehirlenmesi yaşayabilirsin."
+                    },
+                    {
+                        text: "Rüzgarı arkama alarak güvenli bir alana uzaklaşır ve 112'yi ararım",
+                        riskChanges: 0,
+                        feedback: "DOĞRU! Önce kendi güvenliğini sağla, sonra yetkililere haber ver."
+                    },
+                    {
+                        text: "Video çekip sosyal medyada paylaşırım",
+                        riskChanges: 50,
+                        feedback: "YANLIŞ! Zaman kaybediyorsun. Yangın çok hızlı yayılabilir."
+                    }
+                ]
+            },
+            {
+                id: 2,
+                question: "Tahliye emri verildi. Arabana bindin ama yoğun duman var. Ne yapmalısın?",
+                options: [
+                    {
+                        text: "Klimayı 'dış hava' modunda çalıştırıp son sürat giderim",
+                        riskChanges: 70,
+                        feedback: "YANLIŞ! Dışarıdan dumanı içeri çekersin. Zehirlenme riski!"
+                    },
+                    {
+                        text: "Camları kapatır, klimayı 'iç sirkülasyon' moduna alır, farları yakar ve yavaşça ilerlerim",
+                        riskChanges: 0,
+                        feedback: "DOĞRU! Dumanın içeri girmesini engelledin ve görünürlüğünü artırdın."
+                    },
+                    {
+                        text: "Camları açıp dumanı elle dağıtmaya çalışırım",
+                        riskChanges: 100,
+                        feedback: "KRİTİK HATA! Duman ciğerlerine doldu. Bilincini kaybedebilirsin."
+                    }
+                ]
+            }
+        ]
     }
 ];
