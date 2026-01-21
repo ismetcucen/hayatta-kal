@@ -50,20 +50,16 @@ function Game() {
                 const yanginLocal = scenarios.find(s => s.id === 'yangin');
 
                 finalScenarios = scenarios.map(local => {
-                    const remote = dbScenarios.find(r => r.id === local.id);
-                    if (!remote) return local; // Use local if missing in DB
-
-                    // FORCE FIX: Aggressively overwrite 'yangin' in DB with local version
-                    // This resolves the issue where the user still sees old data despite code changes.
+                    // HARD OVERRIDE: Always use local definition for 'yangin'
+                    // This bypasses any DB sync issues or cache problems.
                     if (local.id === 'yangin') {
-                        console.warn("Force-syncing Yangin scenario to DB...");
-                        supabase.from('scenarios').upsert(local).then(({ error }) => {
-                            if (error) console.error("Failed to sync Yangin:", error);
-                            else console.log("Yangin successfully synced to DB.");
-                        });
-                        return local; // Force use of local data
+                        return local;
                     }
-                    return remote; // Otherwise prefer DB
+
+                    const remote = dbScenarios.find(r => r.id === local.id);
+                    if (!remote) return local;
+
+                    return remote;
                 });
 
                 // Add any purely new scenarios from DB that don't exist locally
