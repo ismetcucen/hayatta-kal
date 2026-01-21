@@ -219,7 +219,7 @@ function Game() {
     }
 
     return (
-        <div className="flex h-screen bg-slate-950 font-sans text-slate-100 overflow-hidden font-inter selection:bg-blue-500/30">
+        <div className="flex flex-col h-screen bg-slate-950 font-sans text-slate-100 overflow-hidden font-inter selection:bg-blue-500/30">
             {/* Header */}
             <header className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-20 shadow-lg shrink-0">
                 <div className="flex items-center gap-2">
