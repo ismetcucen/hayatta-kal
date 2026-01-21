@@ -205,57 +205,83 @@ export const scenarios = [
     {
         id: "yangin",
         title: "Orman Yangını Senaryosu",
-        intro: "Tatil için bulunduğun bölgede aniden duman kokusu aldın ve ormanlık alandan alevlerin yükseldiğini gördün. Rüzgar şiddetli!",
+        intro: "Sınıftasın ve aniden yer sallanmaya başladı. Çok şiddetli bir deprem oluyor! (LÜTFEN BU SENARYOYU YANGIN İÇİN DÜZENLEYİN)",
         steps: [
             {
                 id: 1,
-                question: "Yangını fark ettiğin an ilk ne yaparsın?",
+                question: "İlk tepkin ne olur?",
                 options: [
                     {
-                        text: "Hemen yangına doğru koşup söndürmeye çalışırım",
-                        riskChanges: 90,
-                        feedback: "ÇOK TEHLİKELİ! Eğitimin ve ekipmanın yoksa yangına müdahale etmek hayatını riske atar."
-                    },
-                    {
-                        text: "Rüzgarı arkama alarak güvenli bir alana uzaklaşır ve 112'yi ararım",
-                        riskChanges: 0,
-                        feedback: "DOĞRU! Önce kendi güvenliğini sağla, sonra yetkililere haber ver."
-                    },
-                    {
-                        text: "Video çekip sosyal medyada paylaşırım",
-                        riskChanges: 50,
-                        feedback: "YANLIŞ! Zaman kaybediyorsun. Yangın çok hızlı yayılabilir."
-                    },
-                    {
-                        text: "Değerli eşyalarımı kurtarmak için eve girerim",
+                        text: "Hemen merdivenlere koşup dışarı kaçarım",
                         riskChanges: 80,
-                        feedback: "HATALI! Can güvenliği her şeyden önemlidir. Duman dakikalar içinde evi sarabilir."
+                        feedback: "YANLIŞ! Deprem anında merdivenler en zayıf yerlerdir ve yıkılabilir. Ayrıca panikle düşebilirsin. Vücudun ciddi darbe aldı!"
+                    },
+                    {
+                        text: "Sıranın yanına Çök-Kapan-Tutun yaparım",
+                        riskChanges: 0,
+                        feedback: "DOĞRU! Hayat üçgeni oluşturmak için en güvenli hareket budur. Sarsıntı bitene kadar bekle."
+                    },
+                    {
+                        text: "Pencereden aşağı atlarım",
+                        riskChanges: 100,
+                        feedback: "ÇOK TEHLİKELİ! Cam kırıkları ve yüksekten düşme sonucu hayati tehlike oluştu."
+                    },
+                    {
+                        text: "Dolabın içine saklanırım",
+                        riskChanges: 60,
+                        feedback: "YANLIŞ! Dolap devrilebilir ve içinde sıkışabilirsin. Sıra yanı daha güvenlidir."
                     }
                 ]
             },
             {
                 id: 2,
-                question: "Tahliye emri verildi. Arabana bindin ama yoğun duman var. Ne yapmalısın?",
+                question: "Sarsıntı bitti, şimdi ne yapmalısın?",
                 options: [
                     {
-                        text: "Klimayı 'dış hava' modunda çalıştırıp son sürat giderim",
-                        riskChanges: 70,
-                        feedback: "YANLIŞ! Dışarıdan dumanı içeri çekersin. Zehirlenme riski!"
+                        text: "Hızla asansöre binip inerim",
+                        riskChanges: 50,
+                        feedback: "HATA! Depremden sonra elektrik kesilebilir veya asansör bozulabilir. Asansörde mahsur kalırsın."
                     },
                     {
-                        text: "Camları kapatır, klimayı 'iç sirkülasyon' moduna alır, farları yakar ve yavaşça ilerlerim",
+                        text: "Sakin olup, öğretmenin talimatıyla merdivenlerden inerim",
                         riskChanges: 0,
-                        feedback: "DOĞRU! Dumanın içeri girmesini engelledin ve görünürlüğünü artırdın."
+                        feedback: "HARİKA! Panik yapmadan tahliye planına uymak seni kurtarır."
                     },
                     {
-                        text: "Camları açıp dumanı elle dağıtmaya çalışırım",
-                        riskChanges: 100,
-                        feedback: "KRİTİK HATA! Duman ciğerlerine doldu. Bilincini kaybedebilirsin."
+                        text: "Sınıfta kalıp dersin devam etmesini beklerim",
+                        riskChanges: 40,
+                        feedback: "YANLIŞ! Artçı depremler olabilir, bina hasar görmüş olabilir. Dışarı çıkmalısın."
                     },
                     {
-                        text: "Arabanın farlarını kapatıp dumanın azalmasını beklerim",
+                        text: "Koşarak kantine giderim",
+                        riskChanges: 30,
+                        feedback: "YANLIŞ! Panik yapmak ve gruptan ayrılmak güvenliğini tehlikeye atar."
+                    }
+                ]
+            },
+            {
+                id: 3,
+                question: "Binadan çıktın. Nerede beklemelisin?",
+                options: [
+                    {
+                        text: "Binanın hemen dibinde",
                         riskChanges: 60,
-                        feedback: "YANLIŞ! Bekleyecek zamanın yok ve farlar kapalıyken diğer araçlar seni göremez."
+                        feedback: "YANLIŞ! Artçı sarsıntılarla camlar veya balkonlar üzerine düşebilir."
+                    },
+                    {
+                        text: "Toplanma alanında, binalardan uzak açık bir yerde",
+                        riskChanges: 0,
+                        feedback: "DOĞRU! En güvenli yer açık alanlardır."
+                    },
+                    {
+                        text: "Eve koşup ailemi ararım",
+                        riskChanges: 20,
+                        feedback: "RİSKLİ! Önce öğretmenlerine bilgi verip toplanma alanında sayım yapılmasına katılmalısın."
+                    },
+                    {
+                        text: "Elektrik direğinin altına sığınırım",
+                        riskChanges: 70,
+                        feedback: "TEHLİKELİ! Direkler devrilebilir veya elektrik çarpabilir."
                     }
                 ]
             }
