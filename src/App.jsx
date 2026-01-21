@@ -58,57 +58,84 @@ function Game() {
         if (data) setClassLeaderboard(data);
     };
 
-    const selectCity = (city) => {
-        setCurrentCity(city);
-        const scenario = gameScenarios.find(s => s.id === city.dangerType) || gameScenarios[0];
-        setCurrentScenario(scenario);
-        setGameStatus('intro');
+    const getMissionCities = () => {
+        if (activeMission === 'hepsi') return Object.keys(cityStats);
+        return Object.keys(cityStats).filter(key => cityStats[key].dangerType === activeMission);
     };
 
-    const startGame = () => {
-        setCurrentStepIndex(0);
+    const [completedCityIds, setCompletedCityIds] = useState([]);
+
+    const selectCity = (city) => {
+        // Find the key for this city object
+        const cityKey = Object.keys(cityStats).find(key => cityStats[key].name === city.name);
+
+        if (activeMission !== 'hepsi' && city.dangerType !== activeMission) {
+            alert("Bu bölge şu anki görev kapsamında değil!");
+            return;
+        }
+        if (completedCityIds.includes(cityKey)) {
+            alert("Bu bölgedeki görev zaten tamamlandı!");
+            return;
+        }
+
+        setCurrentCity(city);
         setRiskLevel(0);
-        setGameStatus('playing');
+
+        // Load scenario
+        let type = city.dangerType;
+        if (activeMission !== 'hepsi') type = activeMission; // Enforce mission type
+
+        const scenario = gameScenarios.find(s => s.id === type) || gameScenarios[0];
+        setCurrentScenario(scenario);
+
+        // Determine which step (question) to show based on progress
+        const missionProgress = completedCityIds.length;
+        const stepIndex = missionProgress % scenario.steps.length;
+
+        const initialSteps = scenario.steps;
+        if (!initialSteps || initialSteps.length === 0) return;
+
+        setCurrentStepIndex(stepIndex); // LOAD SPECIFIC STEP
 
         let warningText = "";
-        switch (currentCity.dangerType) {
+        switch (city.dangerType) {
             case 'sel':
-                warningText = `UYARI: ${currentCity.name} bölgesinde sel felaketi başladı!`;
+                warningText = `UYARI: ${city.name} bölgesinde sel felaketi başladı!`;
                 break;
             case 'cig':
-                warningText = `UYARI: ${currentCity.name} dağlık bölgesinde çığ düştü!`;
+                warningText = `UYARI: ${city.name} dağlık bölgesinde çığ düştü!`;
+                break;
+            case 'yangin':
+                warningText = `ALARM: ${city.name} ormanlarında yangın çıktı!`;
                 break;
             default:
-                warningText = `UYARI: ${currentCity.name} bölgesinde şiddetli sarsıntı tespit edildi!`;
+                warningText = `UYARI: ${city.name} bölgesinde şiddetli sarsıntı tespit edildi!`;
         }
 
         setChatHistory([
             { type: 'bot', text: warningText },
-            { type: 'bot', text: currentScenario.intro },
-            { type: 'bot', text: currentScenario.steps[0].question }
+            { type: 'bot', text: scenario.intro },
+            { type: 'bot', text: initialSteps[stepIndex].question }
         ]);
+
+        setGameStatus('intro');
+        setTimeout(() => setGameStatus('playing'), 2500);
     };
 
-    const updateScore = async (finalRisk) => {
-        if (!currentUser) return;
-        const gainedScore = Math.max(0, 100 - finalRisk);
-
-        // Optimistic update
-        setCurrentUser(prev => ({ ...prev, score: (prev.score || 0) + gainedScore }));
-
-        // DB Update
-        // We increment the score atomically if possible, but for simple app, read-then-write
-        const { data: freshUser } = await supabase.from('students').select('score').eq('id', currentUser.id).single();
-        if (freshUser) {
-            await supabase.from('students').update({ score: freshUser.score + gainedScore }).eq('id', currentUser.id);
+    const startGame = () => {
+        if (!currentCity) {
+            // Auto-select first city if none selected in map
+            const missionKeys = getMissionCities();
+            const unvisited = missionKeys.filter(k => !completedCityIds.includes(k));
+            if (unvisited.length > 0) {
+                const randomKey = unvisited[Math.floor(Math.random() * unvisited.length)];
+                selectCity(cityStats[randomKey]);
+            } else {
+                alert("Lütfen haritadan bir şehir seçin.");
+            }
+        } else {
+            setGameStatus('playing');
         }
-    };
-
-    const restartGame = () => {
-        setGameStatus('map');
-        setCurrentCity(null);
-        setChatHistory([]);
-        setRiskLevel(0);
     };
 
     const handleOptionClick = (option) => {
@@ -124,19 +151,64 @@ function Game() {
                 setGameStatus('finished');
                 updateScore(100); // 0 score gained
             } else {
-                if (currentStepIndex < currentScenario.steps.length - 1) {
-                    const nextStep = currentScenario.steps[currentStepIndex + 1];
-                    setCurrentStepIndex(prev => prev + 1);
-                    setTimeout(() => {
-                        setChatHistory(prev => [...prev, { type: 'bot', text: nextStep.question }]);
-                    }, 1000);
+                // RETRY MECHANIC: If it's a "bad" choice (risk increases), don't advance.
+                const isWrongAnswer = option.riskChanges > 0;
+
+                if (isWrongAnswer) {
+                    setChatHistory(prev => [...prev, { type: 'bot', text: "❌ Yanlış karar! Risk seviyesi arttı. Tekrar dene, doğru kararı verene kadar ilerleyemezsin.", isWarning: true }]);
                 } else {
-                    setChatHistory(prev => [...prev, { type: 'bot', text: "🏆 TEBRİKLER! Bu felaketten sağ kurtuldun." }]);
-                    setGameStatus('finished');
+                    // Correct Answer -> SUCCESS FOR THIS CITY
+                    setChatHistory(prev => [...prev, { type: 'bot', text: "✅ Bölge kontrol altına alındı! Harika iş çıkardın." }]);
+
+                    // Mark confirmed complete
+                    const cityKey = Object.keys(cityStats).find(key => cityStats[key].name === currentCity.name);
+                    const newCompleted = [...completedCityIds, cityKey];
+                    setCompletedCityIds(newCompleted);
+
+                    // Check Mission Status
+                    const allMissionCities = getMissionCities();
+                    const isMissionComplete = allMissionCities.every(k => newCompleted.includes(k));
+
+                    // Update Score (partial)
                     updateScore(newRisk);
+
+                    if (isMissionComplete) {
+                        setTimeout(() => {
+                            setChatHistory(prev => [...prev, { type: 'bot', text: "🏆 GÖREV TAMAMLANDI! Tüm bölgeler güvenli." }]);
+                            setGameStatus('finished'); // Real finish
+                        }, 1000);
+                    } else {
+                        // AUTO-ADVANCE logic
+                        setTimeout(() => {
+                            setChatHistory(prev => [...prev, { type: 'bot', text: "🚁 Helikopter hazırlanıyor... Sıradaki acil durum bölgesine geçiliyor..." }]);
+
+                            setTimeout(() => {
+                                // Pick next random unvisited city
+                                const unvisited = allMissionCities.filter(k => !newCompleted.includes(k));
+                                if (unvisited.length > 0) {
+                                    const nextKey = unvisited[Math.floor(Math.random() * unvisited.length)];
+                                    selectCity(cityStats[nextKey]);
+                                }
+                            }, 3000);
+                        }, 1000);
+                    }
                 }
             }
         }, 600);
+    };
+
+    const restartGame = () => {
+        setGameStatus('map');
+        setCurrentCity(null);
+        setChatHistory([]);
+        setRiskLevel(0);
+        // We do NOT plain reset completedCityIds here, because users might want to continue map.
+        // But if they explicitly formatted "Restart" from a finished game, maybe we should?
+        // Let's reset only if Mission is Complete, otherwise keep progress.
+        const allMissionCities = getMissionCities();
+        if (completedCityIds.length >= allMissionCities.length) {
+            setCompletedCityIds([]);
+        }
     };
 
     if (!currentUser) {
@@ -144,16 +216,27 @@ function Game() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 flex flex-col h-screen font-sans text-slate-100 overflow-hidden">
-
+        <div className="flex h-screen bg-slate-950 font-sans text-slate-100 overflow-hidden font-inter selection:bg-blue-500/30">
             {/* Header */}
             <header className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-20 shadow-lg shrink-0">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="text-red-600 w-6 h-6" />
-                    <h1 className="font-bold text-xl tracking-tight hidden md:block">HAYATTA KAL</h1>
+                    <h1 className="font-bold text-xl tracking-tight hidden md:block">HAYATTA KAL \ {activeMission !== 'hepsi' ? activeMission.toUpperCase() + ' MODU' : 'SERBEST MOD'}</h1>
                 </div>
 
                 <div className="flex items-center gap-4">
+                    {/* Mission Progress Bar */}
+                    {activeMission !== 'hepsi' && (
+                        <div className="hidden md:flex flex-col items-end mr-4">
+                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Görev İlerlemesi</span>
+                            <div className="flex gap-1 mt-1">
+                                {getMissionCities().map(key => (
+                                    <div key={key} className={`w-3 h-3 rounded-full ${completedCityIds.includes(key) ? 'bg-green-500 shadow-green-500/50 shadow' : 'bg-slate-700'}`}></div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-2 bg-slate-800 rounded-full px-4 py-1 border border-slate-700">
                         <span className="font-bold text-blue-400">{currentUser.name}</span>
                         <span className="text-slate-500">|</span>
@@ -203,7 +286,7 @@ function Game() {
                                             <th className="p-4 text-right">Puan</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800">
+                                    <tbody className="divide-y divide-slate-800 text-sm">
                                         {classLeaderboard.map((s, i) => (
                                             <tr key={s.id} className={s.id === currentUser.id ? "bg-blue-900/20 text-white" : "text-slate-300"}>
                                                 <td className="p-4 font-bold text-slate-500">{i + 1}</td>
@@ -235,97 +318,108 @@ function Game() {
                     )}
 
                     {gameStatus === 'map' && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-700 shadow-2xl z-[1000] whitespace-nowrap">
-                            <p className="font-bold animate-pulse text-sm md:text-base">
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur px-6 py-3 rounded-full border border-slate-700 shadow-2xl z-[1000] whitespace-nowrap text-center">
+                            <p className="font-bold animate-pulse text-sm md:text-base mb-1">
                                 {activeMission === 'hepsi' && "Bir şehir seç ve simülasyonu başlat"}
                                 {activeMission === 'yangin' && "GÖREV: Orman yangını riski taşıyan bölgelere müdahale et!"}
                                 {activeMission === 'deprem' && "GÖREV: Deprem riski olan bölgelerde tatbikat yap!"}
                                 {activeMission === 'sel' && "GÖREV: Sel riski taşıyan bölgeleri kontrol et!"}
                                 {activeMission === 'cig' && "GÖREV: Çığ tehlikesi olan bölgeleri incele!"}
                             </p>
+                            {activeMission !== 'hepsi' && (
+                                <p className="text-xs text-slate-400">
+                                    Tamamlanan: {completedCityIds.length} / {getMissionCities().length}
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Right Panel: Game / Intro */}
-                {gameStatus !== 'map' && (
-                    <div className="flex-[1.5] flex flex-col bg-slate-950 relative animate-in slide-in-from-right duration-500">
+                {
+                    gameStatus !== 'map' && (
+                        <div className="flex-[1.5] flex flex-col bg-slate-950 relative animate-in slide-in-from-right duration-500">
 
-                        {gameStatus === 'intro' ? (
-                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8">
-                                <div className="w-32 h-32 relative">
-                                    <div className="absolute inset-0 bg-red-600 rounded-full animate-ping opacity-20"></div>
-                                    <div className="relative bg-gradient-to-br from-red-600 to-red-800 w-full h-full rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-900">
-                                        <AlertTriangle className="w-16 h-16 text-white" />
+                            {gameStatus === 'intro' ? (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8">
+                                    <div className="w-32 h-32 relative">
+                                        <div className="absolute inset-0 bg-red-600 rounded-full animate-ping opacity-20"></div>
+                                        <div className="relative bg-gradient-to-br from-red-600 to-red-800 w-full h-full rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-900">
+                                            <AlertTriangle className="w-16 h-16 text-white" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h2 className="text-4xl font-black mb-4">SİMÜLASYON HAZIR</h2>
+                                        <p className="text-xl text-slate-400 max-w-lg mx-auto">
+                                            {currentCity.name} için afet senaryosu yükleniyor.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={startGame}
+                                        className="px-10 py-4 bg-white text-slate-900 rounded-xl font-black text-xl hover:scale-105 transition-transform flex items-center gap-3"
+                                    >
+                                        <Play className="fill-current w-6 h-6" /> BAŞLAT
+                                    </button>
+
+                                    <button onClick={restartGame} className="text-slate-500 hover:text-white underline">
+                                        Farklı şehir seç
+                                    </button>
+                                </div>
+                            ) : (
+                                // Chat Interface
+                                <div className="flex-1 flex flex-col h-full bg-slate-950">
+                                    {/* Chat Messages */}
+                                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
+                                        {chatHistory.map((msg, i) => (
+                                            <div key={i} className={clsx("flex w-full animate-in slide-in-from-bottom-2", msg.type === 'user' ? "justify-end" : "justify-start")}>
+                                                <div className={clsx("max-w-[85%] rounded-2xl p-5 text-lg shadow-lg leading-relaxed",
+                                                    msg.type === 'user'
+                                                        ? "bg-blue-600 text-white rounded-tr-none"
+                                                        : msg.isWarning
+                                                            ? "bg-red-900/20 text-red-200 border border-red-500/50 rounded-tl-none"
+                                                            : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"
+                                                )}>
+                                                    {msg.text}
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {/* Options */}
+                                        {gameStatus === 'playing' && (
+                                            <div className="mt-8 grid grid-cols-1 gap-3 pb-8">
+                                                {currentScenario.steps[currentStepIndex].options.map((opt, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => handleOptionClick(opt)}
+                                                        className="text-left p-5 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-xl transition-all group flex items-start gap-4"
+                                                    >
+                                                        <span className="w-8 h-8 rounded-lg bg-slate-800 group-hover:bg-blue-500 flex items-center justify-center font-bold text-slate-400 group-hover:text-white transition-colors shrink-0 mt-1">
+                                                            {String.fromCharCode(65 + i)}
+                                                        </span>
+                                                        <span className="text-slate-300 group-hover:text-white text-lg">{opt.text}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {gameStatus === 'finished' && (
+                                            <div className="text-center py-10 space-y-4">
+                                                <p className="text-slate-400">Puanın güncellendi!</p>
+                                                <button onClick={restartGame} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold flex items-center gap-2 mx-auto">
+                                                    <RotateCcw className="w-5 h-5" /> Haritaya Dön
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-
-                                <div>
-                                    <h2 className="text-4xl font-black mb-4">SİMÜLASYON HAZIR</h2>
-                                    <p className="text-xl text-slate-400 max-w-lg mx-auto">
-                                        {currentCity.name} için afet senaryosu yükleniyor.
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={startGame}
-                                    className="px-10 py-4 bg-white text-slate-900 rounded-xl font-black text-xl hover:scale-105 transition-transform flex items-center gap-3"
-                                >
-                                    <Play className="fill-current w-6 h-6" /> BAŞLAT
-                                </button>
-
-                                <button onClick={restartGame} className="text-slate-500 hover:text-white underline">
-                                    Farklı şehir seç
-                                </button>
-                            </div>
-                        ) : (
-                            // Chat Interface
-                            <div className="flex-1 flex flex-col h-full bg-slate-950">
-                                {/* Chat Messages */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
-                                    {chatHistory.map((msg, i) => (
-                                        <div key={i} className={clsx("flex w-full animate-in slide-in-from-bottom-2", msg.type === 'user' ? "justify-end" : "justify-start")}>
-                                            <div className={clsx("max-w-[85%] rounded-2xl p-5 text-lg shadow-lg leading-relaxed",
-                                                msg.type === 'user' ? "bg-blue-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none"
-                                            )}>
-                                                {msg.text}
-                                            </div>
-                                        </div>
-                                    ))}
-
-                                    {/* Options */}
-                                    {gameStatus === 'playing' && (
-                                        <div className="mt-8 grid grid-cols-1 gap-3 pb-8">
-                                            {currentScenario.steps[currentStepIndex].options.map((opt, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => handleOptionClick(opt)}
-                                                    className="text-left p-5 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-xl transition-all group flex items-start gap-4"
-                                                >
-                                                    <span className="w-8 h-8 rounded-lg bg-slate-800 group-hover:bg-blue-500 flex items-center justify-center font-bold text-slate-400 group-hover:text-white transition-colors shrink-0 mt-1">
-                                                        {String.fromCharCode(65 + i)}
-                                                    </span>
-                                                    <span className="text-slate-300 group-hover:text-white text-lg">{opt.text}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {gameStatus === 'finished' && (
-                                        <div className="text-center py-10 space-y-4">
-                                            <p className="text-slate-400">Puanın güncellendi!</p>
-                                            <button onClick={restartGame} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold flex items-center gap-2 mx-auto">
-                                                <RotateCcw className="w-5 h-5" /> Haritaya Dön
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
+                            )}
+                        </div>
+                    )
+                }
+            </div >
+        </div >
     );
 }
 
