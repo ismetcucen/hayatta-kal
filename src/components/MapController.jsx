@@ -12,8 +12,9 @@ function MapController({ onSelectCity, activeMission = 'hepsi' }) {
             style={{ height: '100%', width: '100%', background: '#1e293b' }}
         >
             <TileLayer
-                attribution='&copy; OpenStreetMap'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                attribution='&copy; Google Maps'
             />
 
             {Object.entries(cityStats).map(([key, city]) => {
