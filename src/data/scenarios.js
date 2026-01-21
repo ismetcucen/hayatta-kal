@@ -214,7 +214,7 @@ export const scenarios = [
                     {
                         text: "Hemen yangına doğru koşup söndürmeye çalışırım",
                         riskChanges: 90,
-                        feedback: "ÇOK TEHLİKELİ! Eğitimin ve ekipmanın yoksa yangına müdahale etmek hayatını riske atar. Duman zehirlenmesi yaşayabilirsin."
+                        feedback: "ÇOK TEHLİKELİ! Eğitimin ve ekipmanın yoksa yangına müdahale etmek hayatını riske atar."
                     },
                     {
                         text: "Rüzgarı arkama alarak güvenli bir alana uzaklaşır ve 112'yi ararım",
@@ -225,6 +225,11 @@ export const scenarios = [
                         text: "Video çekip sosyal medyada paylaşırım",
                         riskChanges: 50,
                         feedback: "YANLIŞ! Zaman kaybediyorsun. Yangın çok hızlı yayılabilir."
+                    },
+                    {
+                        text: "Değerli eşyalarımı kurtarmak için eve girerim",
+                        riskChanges: 80,
+                        feedback: "HATALI! Can güvenliği her şeyden önemlidir. Duman dakikalar içinde evi sarabilir."
                     }
                 ]
             },
@@ -246,6 +251,11 @@ export const scenarios = [
                         text: "Camları açıp dumanı elle dağıtmaya çalışırım",
                         riskChanges: 100,
                         feedback: "KRİTİK HATA! Duman ciğerlerine doldu. Bilincini kaybedebilirsin."
+                    },
+                    {
+                        text: "Arabanın farlarını kapatıp dumanın azalmasını beklerim",
+                        riskChanges: 60,
+                        feedback: "YANLIŞ! Bekleyecek zamanın yok ve farlar kapalıyken diğer araçlar seni göremez."
                     }
                 ]
             }
